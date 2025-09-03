@@ -46,44 +46,32 @@ try:
         face_encodings = face_recognition.face_encodings(rgb_frame, face_locations)
 
         # Loop through each face found in the frame
+        # Use a stricter tolerance and choose the best match by distance
+        TOLERANCE = 0.4  # lower = stricter matching (0.4-0.5 is typical)
         for face_encoding, face_location in zip(face_encodings, face_locations):
-            # Compare the current face with all known faces
-            matches = face_recognition.compare_faces(known_encodings, face_encoding,tolerance=0.2)
-            name = "Unknown" # Default name if no match is found
+            name = "Unknown"
 
-            # --- Find the best match ---
-            if True in matches:
-                # Find the indexes of all matched faces
-                matched_idxs = [i for (i, b) in enumerate(matches) if b]
-                
-                # Use a dictionary to count votes for each name
-                counts = {}
-                for i in matched_idxs:
-                    name = known_names[i]
-                    counts[name] = counts.get(name, 0) + 1
-                
-                # Determine the name with the most votes
-                name = max(counts, key=counts.get)
-                
-                # Print authentication status to the terminal
-                print(f"Authenticate: {name}")
+            # If no known encodings, skip matching
+            if len(known_encodings) > 0:
+                # Compute distances to all known encodings and pick the best
+                distances = face_recognition.face_distance(known_encodings, face_encoding)
+                # distances is a numpy array; get minimum distance
+                min_distance = float(distances.min()) if len(distances) > 0 else None
+                if min_distance is not None and min_distance <= TOLERANCE:
+                    best_match_index = int(distances.argmin())
+                    name = known_names[best_match_index]
+                    print(f"Authenticate: {name} (distance={min_distance:.3f})")
+                else:
+                    # optional: debug print the best distance
+                    if min_distance is not None:
+                        print(f"No match (best distance={min_distance:.3f})")
+                    else:
+                        print("No known encodings available to match against")
 
-            else:
-                 print("Not a valid user")
-            
             # --- Draw box and name on the frame ---
             top, right, bottom, left = face_location
-            
-            # Set color based on authentication status
-            if name != "Unknown":
-                box_color = (0, 255, 0) # Green for authenticated
-            else:
-                box_color = (0, 0, 255) # Red for unknown
-
-            # Draw the rectangle around the face
+            box_color = (0, 255, 0) if name != "Unknown" else (0, 0, 255)
             cv2.rectangle(frame, (left, top), (right, bottom), box_color, 2)
-            
-            # Draw the name label below the face
             cv2.rectangle(frame, (left, bottom - 35), (right, bottom), box_color, cv2.FILLED)
             font = cv2.FONT_HERSHEY_DUPLEX
             cv2.putText(frame, name, (left + 6, bottom - 6), font, 1.0, (255, 255, 255), 1)

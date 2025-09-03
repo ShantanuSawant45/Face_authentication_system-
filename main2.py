@@ -2,7 +2,6 @@
 import cv2
 import face_recognition
 import face_recognition_models
-print(face_recognition_models)
 print("Starting face detection script...")
 
 # Get a reference to the webcam (0 is usually the built-in webcam)
