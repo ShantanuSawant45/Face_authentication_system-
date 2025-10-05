@@ -33,6 +33,7 @@ try:
     print("Press 'c' to capture, 'q' to quit.")
 
     captured = 0
+    new_encodings = []  # temporarily hold encodings for this registration
     while True:
         ret, frame = video_capture.read()
         if not ret:
@@ -50,34 +51,60 @@ try:
         if key == ord('c'):
             print(f"Capturing image {captured+1} for {user_name}...")
             rgb_frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
-            
+
             # Find faces in the frame
             boxes = face_recognition.face_locations(rgb_frame, model='hog')
 
             # We need exactly one face to register a user
             if len(boxes) == 1:
-                # Generate the encoding
+                # Generate the encoding for this capture and store it temporarily
                 encoding = face_recognition.face_encodings(rgb_frame, boxes)[0]
-                
-                # Add the new encoding and name to our data
-                data["encodings"].append(encoding)
-                data["names"].append(user_name)
+                new_encodings.append(encoding)
                 captured += 1
                 print(f"✅ Captured image {captured} for {user_name}.")
-                
-                # Check if we have captured enough images
-                if captured == NUM_IMAGES:
-                    # Save the updated data back to the file
-                    with open(ENCODINGS_FILE, "wb") as f:
-                        f.write(pickle.dumps(data))
-                    
-                    print(f"✅ Success! User '{user_name}' has been registered with {NUM_IMAGES} images.")
-                    
-                    # Show success message on screen before exiting
-                    cv2.putText(frame, "Success! Registered.", (50, 200), cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 255, 0), 3)
+
+                # If we have not yet captured enough images, continue capturing
+                if captured < NUM_IMAGES:
+                    # show a quick visual confirmation
+                    cv2.putText(frame, f"Captured {captured}/{NUM_IMAGES}", (50, 200), cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 255, 0), 3)
                     cv2.imshow('Registration', frame)
-                    cv2.waitKey(2000) # Wait for 2 seconds
+                    cv2.waitKey(500)
+                    continue
+
+                # --- After collecting NUM_IMAGES encodings: check duplicates against existing DB ---
+                is_duplicate = False
+                if data.get("encodings"):
+                    try:
+                        # For each new encoding, compare against all saved encodings; if any match is found, mark duplicate
+                        for new_enc in new_encodings:
+                            matches = face_recognition.compare_faces(data["encodings"], new_enc, tolerance=0.5)
+                            if any(matches):
+                                is_duplicate = True
+                                break
+                    except Exception:
+                        is_duplicate = False
+
+                if is_duplicate:
+                    print("❌ This face is already registered. Registration aborted.")
+                    cv2.putText(frame, "Already registered", (50, 200), cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 0, 255), 3)
+                    cv2.imshow('Registration', frame)
+                    cv2.waitKey(2000)
                     break
+
+                # No duplicates found: persist all new encodings and names
+                for enc in new_encodings:
+                    data["encodings"].append(enc)
+                    data["names"].append(user_name)
+
+                # Save the updated data back to the file
+                with open(ENCODINGS_FILE, "wb") as f:
+                    f.write(pickle.dumps(data))
+
+                print(f"✅ Success! User '{user_name}' has been registered with {NUM_IMAGES} images.")
+                cv2.putText(frame, "Success! Registered.", (50, 200), cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 255, 0), 3)
+                cv2.imshow('Registration', frame)
+                cv2.waitKey(2000)  # Wait for 2 seconds
+                break
             else:
                 print("❌ Error: Could not find exactly one face. Please try again.")
                 

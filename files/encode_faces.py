@@ -1,5 +1,5 @@
 # encode_faces.py
-print("Script started!")
+print("Script started!") 
 try:
     import face_recognition
     import pickle
