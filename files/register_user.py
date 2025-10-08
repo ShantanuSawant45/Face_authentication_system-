@@ -24,6 +24,20 @@ try:
     # We ensure the name is a valid directory name (no spaces, etc.)
     user_name = input("Enter the new user's name (no spaces): ").lower()
 
+    # --- Liveness pre-check ---
+    # Try importing as package first, fallback if run as script
+    # try:
+    #     from files.liveness import check_liveness
+    # except Exception:
+    #     from liveness import check_liveness
+    #
+    # print("Running liveness check before registration (blink or head-movement)...")
+    # live_ok, live_reason = check_liveness(duration=4.0, required_blinks=1)
+    # print(f"Liveness result: {live_ok} - {live_reason}")
+    # if not live_ok:
+    #     print("Liveness check failed. Aborting registration.")
+    #     exit()
+
     # --- Initialize Webcam ---
     video_capture = cv2.VideoCapture(0)
     if not video_capture.isOpened():

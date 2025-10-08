@@ -29,6 +29,25 @@ try:
     if not video_capture.isOpened():
         raise IOError("Cannot open webcam")
 
+    # --- Liveness pre-check ---
+    try:
+        # Try importing as package first, fallback if run as script
+        try:
+            from files.liveness import check_liveness
+        except Exception:
+            from liveness import check_liveness
+
+        print("Running liveness check before authentication (blink or head-movement)...")
+        live_ok, live_reason = check_liveness(duration=4.0, required_blinks=1)
+        print(f"Liveness result: {live_ok} - {live_reason}")
+        if not live_ok:
+            print("Liveness check failed. Aborting authentication.")
+            video_capture.release()
+            exit()
+    except Exception:
+        # If liveness module fails for any reason, fallback to continuing
+        print("Liveness check module error; continuing without liveness check.")
+
     print("Webcam opened. System is ready.")
     print("Press 'q' to quit.")
 
